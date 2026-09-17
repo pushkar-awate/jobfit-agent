@@ -71,6 +71,7 @@ def _load_learned():
 
 def _save_learned(terms):
     try:
+        os.makedirs(os.path.dirname(LEARNED_PATH), exist_ok=True)
         with open(LEARNED_PATH, "w", encoding="utf-8") as f:
             json.dump(sorted(set(terms)), f, indent=2)
     except Exception:

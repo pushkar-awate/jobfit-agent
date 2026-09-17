@@ -153,6 +153,10 @@ promote or roll back.
 --json    machine-readable output for piping into other tools
 ```
 
+## Troubleshooting
+
+`diagnose.py` is a standalone check for the `--llm` path: run `python diagnose.py` (with `GROQ_API_KEY` set) to see the real Groq response and the list of models your key can use.
+
 ## Evaluation
 
 `eval/` holds a small **labeled smoke test**: six job postings marked fit / no-fit

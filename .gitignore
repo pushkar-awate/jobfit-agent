@@ -6,3 +6,6 @@ my/
 # generated run outputs
 report.md
 decisions.jsonl
+
+# runtime self-learning store (regenerated on use)
+app/data/learned_skills.json
