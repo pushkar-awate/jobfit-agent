@@ -1,5 +1,7 @@
 # jobfit-agent
 
+[![tests](https://github.com/pushkar-awate/jobfit-agent/actions/workflows/ci.yml/badge.svg)](https://github.com/pushkar-awate/jobfit-agent/actions/workflows/ci.yml)
+
 A from-scratch AI agent that reads a job description and your resume, scores how
 well they match, tells you which skills are missing, and drafts tailored resume
 bullets that never claim a skill you do not have.
