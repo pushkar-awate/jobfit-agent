@@ -1,0 +1,4 @@
+Senior Frontend Developer
+Build responsive web apps with React, TypeScript, JavaScript, HTML and CSS.
+Experience with Redux, Next.js, and modern frontend tooling. Strong eye for
+UI and accessibility.

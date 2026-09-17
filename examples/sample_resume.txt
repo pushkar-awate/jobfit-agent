@@ -1,0 +1,17 @@
+Pushkar Awate - AI/ML Engineer
+Melbourne, Australia
+
+Summary
+Early-career AI/ML engineer with a Master of Artificial Intelligence and prior
+Kubernetes architecture experience.
+
+Skills
+Python, SQL, TensorFlow, Keras, scikit-learn, XGBoost, pandas, numpy, AWS,
+SageMaker, Azure, AKS, Kubernetes, Docker, Kestra, MLflow, machine learning,
+deep learning, MLOps, CI/CD, Linux, Git
+
+Experience
+- Built an agentic XGBoost geospatial pipeline orchestrated with Kestra
+- Trained a multimodal deep learning model on AWS SageMaker with TensorFlow and Keras
+- Operated Kubernetes clusters on AKS and GKE with monitoring via Dynatrace
+- Developed data processing pipelines in Python using pandas and numpy

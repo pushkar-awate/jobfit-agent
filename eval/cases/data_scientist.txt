@@ -1,0 +1,4 @@
+Data Scientist
+Analyse data and build predictive models. Strong Python, SQL, pandas, numpy,
+scikit-learn, machine learning, data mining. Communicate findings to
+stakeholders.

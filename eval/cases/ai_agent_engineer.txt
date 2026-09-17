@@ -1,0 +1,4 @@
+AI Agent Engineer
+Build AI-driven features with agent loops, MCP servers and tool-calling.
+Work spec-first with coding agents. Familiarity with Anthropic, OpenAI or
+Vertex AI, and LangChain or LangGraph. Full stack experience.

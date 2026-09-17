@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+.env
+# personal data — never commit your real resume / job descriptions
+my/
+# generated run outputs
+report.md
+decisions.jsonl

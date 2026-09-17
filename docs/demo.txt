@@ -1,0 +1,26 @@
+$ python -m app.run --jd examples/sample_jd.txt --resume examples/sample_resume.txt
+[brain=mock] fit score: 72% (keyword)  ->  /tmp/r.md   (ledger: /tmp/d.jsonl)
+
+$ python -m app.run --jd examples/sample_jd.txt --resume examples/sample_resume.txt --auto
+[router] keyword score 72% -> confident fit -> mock
+[brain=mock] fit score: 72% (keyword)  ->  /tmp/r.md   (ledger: /tmp/d.jsonl)
+
+$ python eval/run_eval.py
+case                 label  score   predicted ok
+----------------------------------------------------
+mlops_engineer       fit    100%    fit       OK
+ml_engineer          fit    91%     fit       OK
+data_scientist       fit    86%     fit       OK
+ai_agent_engineer    fit    10%     nofit     X
+registered_nurse     nofit  0%      nofit     OK
+frontend_developer   nofit  0%      nofit     OK
+----------------------------------------------------
+[brain=mock  threshold=25]  accuracy 83% (5/6)  precision 100%  recall 75%
+
+$ python tests/test_agent.py
+PASS: end-to-end mock  (fit=72% source=keyword)
+PASS: guardrail blocked invented skill  (draft references skills not in the resume: terraform)
+PASS: LLM path via stub  (fit=78% source=llm, robust JSON parse)
+PASS: router bands (mlops>=55, nurse<=5, no-key stays mock)
+
+All tests passed.

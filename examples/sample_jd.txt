@@ -1,0 +1,17 @@
+MLOps Engineer
+We are hiring an MLOps Engineer to productionise machine learning systems.
+
+Responsibilities
+- Deploy and monitor machine learning models on Kubernetes
+- Build CI/CD pipelines for model training and deployment
+- Manage infrastructure as code with Terraform
+- Work with AWS and Docker
+- Implement model serving with FastAPI
+
+Requirements
+- Strong Python
+- Experience with Kubernetes and Docker
+- Terraform for infrastructure as code
+- PyTorch or TensorFlow
+- MLflow, Prometheus and Grafana for monitoring
+- CI/CD, Git, Linux

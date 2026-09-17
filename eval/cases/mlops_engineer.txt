@@ -1,0 +1,4 @@
+MLOps Engineer
+Deploy and monitor machine learning models on Kubernetes. Build CI/CD
+pipelines for training and deployment. Strong Python, Docker, AWS, MLflow.
+TensorFlow or scikit-learn. Linux and Git.

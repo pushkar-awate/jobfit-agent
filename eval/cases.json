@@ -1,0 +1,8 @@
+[
+  {"name": "mlops_engineer",     "jd": "eval/cases/mlops_engineer.txt",     "label": "fit"},
+  {"name": "ml_engineer",        "jd": "eval/cases/ml_engineer.txt",        "label": "fit"},
+  {"name": "data_scientist",     "jd": "eval/cases/data_scientist.txt",     "label": "fit"},
+  {"name": "ai_agent_engineer",  "jd": "eval/cases/ai_agent_engineer.txt",  "label": "fit"},
+  {"name": "registered_nurse",   "jd": "eval/cases/registered_nurse.txt",   "label": "nofit"},
+  {"name": "frontend_developer", "jd": "eval/cases/frontend_developer.txt",  "label": "nofit"}
+]

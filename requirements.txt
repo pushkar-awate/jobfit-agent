@@ -1,0 +1,3 @@
+# No third-party dependencies. Pure Python standard library.
+# Optional: set GROQ_API_KEY in your environment to use a hosted LLM brain
+# instead of the built-in deterministic mock brain.
