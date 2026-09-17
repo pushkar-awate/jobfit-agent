@@ -106,18 +106,27 @@ def discover_terms(text):
     cands = set()
     for m in re.findall(r"\b[A-Z][a-z]+[A-Z][A-Za-z]+\b", text):   # LangGraph
         cands.add(m.lower())
-    for m in re.findall(r"\b[A-Z]{2,5}\b", text):                  # MCP, GKE
+    for m in re.findall(r"\b[A-Z]{3,5}\b", text):                  # MCP, GKE
         low = m.lower()
         if low not in _STOP:
             cands.add(low)
     return cands
 
 
+LEARNED_CAP = 300  # keep the self-learning store bounded
+
+
 def learn_from(text):
-    """Add genuinely new discovered terms to the persistent vocabulary."""
+    """Add genuinely new discovered terms to the persistent vocabulary.
+
+    Heuristic and deliberately conservative: 3-5 letter acronyms or CamelCase
+    tech names only, never seen before, bounded by LEARNED_CAP. This is a
+    convenience, not a curated taxonomy - see the Limitations note in README.
+    """
     known = _known_terms()
     new = sorted(t for t in discover_terms(text)
-                 if t not in known and t not in ALIASES)
+                 if t not in known and t not in ALIASES and 3 <= len(t) <= 30)
     if new:
-        _save_learned(list(_load_learned()) + new)
+        merged = sorted(set(_load_learned()) | set(new))[:LEARNED_CAP]
+        _save_learned(merged)
     return new
