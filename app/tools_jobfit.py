@@ -79,12 +79,17 @@ def assess_fit(state, **kw):
 
 def draft_bullets(state, **kw):
     brain = state["brain"]
+    fit = state["artifacts"].get("fit", {})
+    # prefer the (LLM) fit assessment's strengths; fall back to keyword matches
+    strengths = fit.get("strengths") or state["artifacts"]["match"]["matched"]
     payload = {
         "role": state["artifacts"]["jd"]["title"],
-        "matched_keywords": state["artifacts"]["match"]["matched"],
+        "matched_keywords": strengths,
         "resume_bullets": state["artifacts"]["resume"]["bullets"],
     }
     text = brain.generate("draft_bullets", payload)
+    text = text.replace("\u2011", "-")  # non-breaking hyphen -> hyphen
+    text = "\n".join(line.rstrip() for line in text.splitlines() if line.strip())
     state["artifacts"]["bullets"] = text
     return text
 

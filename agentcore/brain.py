@@ -4,12 +4,18 @@ A brain implements:
   decide(observation, tool_specs) -> Decision   # which tool to run next
   generate(task, payload) -> str                # produce text/JSON for a step
 
-MockBrain is deterministic and needs no network or API key. GroqBrain calls a
-hosted LLM when GROQ_API_KEY is set. Same interface -> pluggable.
+MockBrain is deterministic and needs no network or API key. GroqBrain reuses
+MockBrain's deterministic *planner* (tool order is fixed, so no LLM call is
+wasted on plumbing) and overrides only generate() to do the semantic work with
+a hosted LLM. That keeps a full run to two API calls - assess_fit and
+draft_bullets - well within free-tier rate limits.
 """
 from __future__ import annotations
 import json
 import os
+import sys
+import time
+import urllib.error
 import urllib.request
 
 from .loop import Decision
@@ -66,47 +72,31 @@ class MockBrain(Brain):
         return ""
 
 
-class GroqBrain(Brain):
-    """Hosted-LLM brain via Groq's OpenAI-compatible API (stdlib only)."""
+class GroqBrain(MockBrain):
+    """LLM generation over Groq, on top of MockBrain's deterministic planner."""
 
     URL = "https://api.groq.com/openai/v1/chat/completions"
 
-    def __init__(self, model="llama-3.3-70b-versatile", api_key=None):
+    def __init__(self, model="openai/gpt-oss-20b", api_key=None):
         self.model = model
         self.api_key = api_key or os.environ.get("GROQ_API_KEY")
         if not self.api_key:
             raise RuntimeError("GROQ_API_KEY not set")
 
-    def decide(self, observation, tool_specs):
-        tools_desc = "\n".join("- %s: %s" % (n, s) for n, s in tool_specs.items())
-        prompt = (
-            "You are the planner of a job-fit agent. Choose the SINGLE next tool.\n"
-            "Prerequisites: parse_jd and parse_resume must run before score_match; "
-            "score_match before identify_gaps and assess_fit; then draft_bullets, "
-            "then write_report, then finish.\n"
-            "Goal: %s\nTools:\n%s\nAlready completed: %s\n"
-            "Reply with ONLY JSON: {\"tool\": <name>, \"args\": {}, \"rationale\": <short>}"
-            % (observation.get("goal"), tools_desc, observation.get("completed"))
-        )
-        try:
-            data = json.loads(extract_json(self._chat(prompt)))
-            return Decision(data["tool"], data.get("args", {}),
-                            data.get("rationale", ""))
-        except Exception:
-            return Decision("finish", {}, "unparseable brain output")
-
     def generate(self, task, payload):
         if task == "draft_bullets":
             prompt = (
-                "Rewrite these resume bullets for the role '%s'. Emphasize ONLY "
-                "these already-present skills: %s. Do NOT invent any skill not "
-                "listed. Do NOT use em dashes or en dashes. Return plain bullets.\n"
-                "Bullets:\n%s"
-                % (payload.get("role"), ", ".join(payload.get("matched_keywords", [])),
-                   "\n".join(payload.get("resume_bullets", [])))
+                "Rewrite these resume bullets to be crisp, quantified where the "
+                "original allows, and tailored to the role. Keep every claim "
+                "truthful to the original bullets: do NOT invent tools, skills or "
+                "metrics, and do NOT stuff keywords in unnaturally. Where genuinely "
+                "relevant, reflect these real strengths: %s. Do NOT use em dashes or "
+                "en dashes. Return 4-6 plain bullets starting with '- '.\n"
+                "Role: %s\nOriginal bullets:\n%s"
+                % (", ".join(payload.get("matched_keywords", [])[:6]),
+                   payload.get("role"), "\n".join(payload.get("resume_bullets", [])))
             )
-            return self._chat(prompt)
-        if task == "assess_fit":
+        elif task == "assess_fit":
             prompt = (
                 "Assess how well a candidate fits a role. Read the JOB DESCRIPTION "
                 "and RESUME and return ONLY a JSON object:\n"
@@ -118,10 +108,15 @@ class GroqBrain(Brain):
                 "experience the resume lacks.\n\nJOB DESCRIPTION:\n%s\n\nRESUME:\n%s"
                 % (payload.get("jd_text", "")[:4000], payload.get("resume_text", "")[:4000])
             )
+        else:
+            return ""
+        try:
             return self._chat(prompt)
-        return ""
+        except Exception as e:
+            print("[groq] generate(%s) failed: %s" % (task, e), file=sys.stderr)
+            return ""
 
-    def _chat(self, prompt, temperature=0.2):
+    def _chat(self, prompt, temperature=0.2, _retries=2):
         body = json.dumps({
             "model": self.model,
             "messages": [{"role": "user", "content": prompt}],
@@ -130,7 +125,14 @@ class GroqBrain(Brain):
         req = urllib.request.Request(
             self.URL, data=body, method="POST",
             headers={"Authorization": "Bearer %s" % self.api_key,
-                     "Content-Type": "application/json"})
-        with urllib.request.urlopen(req, timeout=30) as r:
-            resp = json.loads(r.read().decode("utf-8"))
-        return resp["choices"][0]["message"]["content"]
+                     "Content-Type": "application/json",
+                     "User-Agent": "jobfit-agent/1.0"})
+        try:
+            with urllib.request.urlopen(req, timeout=45) as r:
+                resp = json.loads(r.read().decode("utf-8"))
+            return resp["choices"][0]["message"]["content"]
+        except urllib.error.HTTPError as e:
+            if e.code == 429 and _retries > 0:      # rate limited: back off and retry
+                time.sleep(4)
+                return self._chat(prompt, temperature, _retries - 1)
+            raise

@@ -42,6 +42,24 @@ fastapi, grafana, prometheus, pytorch, terraform
 ...
 ```
 
+## A real LLM run (why the LLM brain matters)
+
+On a real "AI Agent Engineer" posting, the deterministic keyword brain scored the
+match at **20%** - it only matched the literal words "agentic ai" and "anthropic".
+The LLM brain (`--llm`, Groq `openai/gpt-oss-20b`) scored the same pairing at
+**70%**, because it saw the semantic fit that keywords miss:
+
+> The candidate brings solid AI/ML engineering and full-stack infrastructure
+> skills, including agentic workflows and Claude Code usage, which align with the
+> role's focus on AI-driven features. However, the resume lacks key details on MCP
+> integration, LangChain/LangGraph, spec-first development, and secure
+> coding/testing practices that the job explicitly requires, resulting in a
+> moderate fit score.
+
+That gap - 20% literal vs 70% semantic - is the whole reason the pluggable LLM
+brain exists. A run makes just two model calls (the fit assessment and the
+drafting); everything else is deterministic.
+
 ## How it works
 
 This is not a single prompt to an LLM. It is a small agent loop, written from
