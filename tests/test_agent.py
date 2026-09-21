@@ -127,10 +127,30 @@ def test_job_board_scoring():
     print("PASS: job-board F1 ranking  (top=%s, thin role demoted)" % top["title"])
 
 
+def test_query_filter():
+    from app.jobs import sample_jobs, matches_query
+    jobs = sample_jobs()
+
+    def hits(q):
+        return {j["title"] for j in jobs if matches_query(j, q)}
+
+    # different searches must return different, on-topic sets (the reported bug
+    # was every search returning the same list)
+    assert hits("ai engineer") != hits("mlops"), "distinct queries must differ"
+    assert "AI Engineer (LLM / Agents)" in hits("ai engineer")
+    assert "MLOps Engineer" in hits("mlops")
+    # an off-topic search matches nothing (app then shows a closest-by-fit note)
+    assert hits("registered nurse") == set()
+    # a query of only generic words can't narrow, so it keeps everything
+    assert matches_query(jobs[0], "engineer")
+    print("PASS: query filter  (ai!=mlops, nurse=0, generic keeps all)")
+
+
 if __name__ == "__main__":
     test_end_to_end_mock()
     test_guardrail_blocks_invented_skill()
     test_llm_path_with_stub()
     test_router_bands()
     test_job_board_scoring()
+    test_query_filter()
     print("\nAll tests passed.")

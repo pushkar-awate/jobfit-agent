@@ -12,7 +12,7 @@ import streamlit as st
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from app.jobs import fetch_jobs, sample_jobs, JobFetchError
+from app.jobs import fetch_jobs, sample_jobs, matches_query, JobFetchError
 from app.skills import extract_skills
 
 st.set_page_config(page_title="jobfit-agent - live job board", page_icon="\U0001F9ED",
@@ -79,13 +79,20 @@ if st.button("Find & rank jobs", type="primary"):
     with st.spinner("Fetching live postings and scoring them against your resume..."):
         live = True
         try:
-            jobs = fetch_jobs(query, limit=limit)
-            if not jobs:
+            pool = fetch_jobs(query, limit=60)   # fetch a broad pool, filter locally
+            if not pool:
                 live = False
-                jobs = sample_jobs()
+                pool = sample_jobs()
         except JobFetchError:
             live = False
-            jobs = sample_jobs()
+            pool = sample_jobs()
+
+        # Remotive's server-side search is unreliable, so keep only roles that
+        # actually match the query; fall back to the whole pool if none do.
+        jobs = [j for j in pool if matches_query(j, query)]
+        used_fallback = not jobs
+        if used_fallback:
+            jobs = pool
 
         ranked = []
         for j in jobs:
@@ -93,11 +100,17 @@ if st.button("Find & rank jobs", type="primary"):
             ranked.append((score, len(matched), coverage, matched, missing, jd_total, j))
         # rank by match strength, then by absolute number of skills matched
         ranked.sort(key=lambda r: (r[0], r[1]), reverse=True)
+        ranked = ranked[:limit]
 
     if live:
         st.caption("Your skills: " + (", ".join(sorted(resume_skills)) or "none detected"))
-        st.success("Showing %d live roles for \"%s\", ranked by overall match strength."
-                   % (len(ranked), query))
+        if used_fallback:
+            st.info("No live postings matched \"%s\" right now - showing the closest "
+                    "remote roles by fit. Try a broader term like \"machine learning\" "
+                    "or \"data\"." % query)
+        else:
+            st.success("Showing %d live roles matching \"%s\", ranked by overall "
+                       "match strength." % (len(ranked), query))
     else:
         st.info("The live feed wasn't reachable just now, so these are example "
                 "roles - the scoring and ranking work exactly the same.")

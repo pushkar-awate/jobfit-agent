@@ -26,7 +26,7 @@ def _strip_html(text):
 
 def fetch_jobs(query="machine learning", limit=15, timeout=12):
     """Return a list of live job dicts. Never raises: on failure returns []."""
-    params = {"search": query, "limit": max(1, min(limit, 50))}
+    params = {"search": query, "limit": max(1, min(limit, 100))}
     url = REMOTIVE_URL + "?" + urllib.parse.urlencode(params)
     req = urllib.request.Request(url, headers={"User-Agent": "jobfit-agent/1.0"})
     try:
@@ -70,3 +70,38 @@ def sample_jobs():
         j["match_text"] = " ".join([j.get("title", ""), j.get("category", ""),
                                      j.get("description", "")])
     return jobs
+
+
+_GENERIC_QUERY_WORDS = {
+    "engineer", "engineering", "developer", "dev", "senior", "junior", "lead",
+    "staff", "principal", "remote", "role", "roles", "job", "jobs", "position",
+    "specialist", "analyst", "consultant", "manager", "intern", "internship",
+    "i", "ii", "iii", "the", "a", "an", "of", "and", "for", "in", "with",
+}
+
+
+def _query_terms(query):
+    toks = re.findall(r"[a-z0-9+#.]+", (query or "").lower())
+    significant = [t for t in toks if len(t) >= 2 and t not in _GENERIC_QUERY_WORDS]
+    return significant, " ".join(toks)
+
+
+def _word_in(term, haystack):
+    return re.search(r"(?<![a-z0-9])" + re.escape(term) + r"(?![a-z0-9])",
+                     haystack) is not None
+
+
+def matches_query(job, query):
+    """True if the posting is actually about the searched role.
+
+    Remotive's ?search= often returns the same recent list regardless of query,
+    so we filter here: keep a job when the full phrase, or every significant
+    query word, appears in its title or description.
+    """
+    significant, phrase = _query_terms(query)
+    if not significant:
+        return True  # only generic words (e.g. "engineer") - can't narrow
+    hay = (job.get("title", "") + " " + job.get("match_text", "")).lower()
+    if phrase and phrase in hay:
+        return True
+    return all(_word_in(t, hay) for t in significant)
