@@ -88,9 +88,38 @@ def test_router_bands():
     print("PASS: router bands (mlops>=55, nurse<=5, no-key stays mock)")
 
 
+def test_job_board_scoring():
+    from app.jobs import sample_jobs, _strip_html
+    from app.skills import extract_skills
+    resume = open(os.path.join(ROOT, "examples", "sample_resume.txt"), encoding="utf-8").read()
+    rskills = set(extract_skills(resume))
+
+    assert _strip_html("<p>Python &amp; <b>PyTorch</b></p>") == "Python & PyTorch"
+
+    def score_job(job):
+        jd = set(extract_skills(job["match_text"]))
+        matched = sorted(jd & rskills)
+        missing = sorted(jd - rskills)
+        return round(100 * len(matched) / max(1, len(jd))), matched, missing
+
+    jobs = sample_jobs()
+    assert len(jobs) >= 3
+    ranked = sorted((score_job(j)[0] for j in jobs), reverse=True)
+    assert ranked == sorted(ranked, reverse=True), "results must be rank-ordered"
+    assert ranked[0] > ranked[-1], "scoring must differentiate roles"
+    # a strong ML role should score the resume highly
+    top = max(jobs, key=lambda j: score_job(j)[0])
+    top_score, top_matched, _ = score_job(top)
+    assert top_score >= 60 and top_matched, "top role should be a clear match"
+    print("PASS: job-board scoring  (top=%d%%, %d sample roles ranked)"
+          % (top_score, len(jobs)))
+
+
+
 if __name__ == "__main__":
     test_end_to_end_mock()
     test_guardrail_blocks_invented_skill()
     test_llm_path_with_stub()
     test_router_bands()
+    test_job_board_scoring()
     print("\nAll tests passed.")

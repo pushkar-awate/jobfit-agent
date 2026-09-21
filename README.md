@@ -16,6 +16,16 @@ $ python -m app.run --jd examples/sample_jd.txt --resume examples/sample_resume.
 [brain=mock] fit score: 69% (keyword)  ->  report.md   (ledger: decisions.jsonl)
 ```
 
+## Live job board (web demo)
+
+**Try it live: https://jobfit-agent.streamlit.app**
+
+Paste your resume, pick a search, and the app pulls **real, live job postings** (Remotive feed, free) and ranks them by how well they fit *you* - reusing the same skill matcher as the CLI. Each role shows the skills you match, the ones you're missing, and an **Apply** button that links straight to the posting. If the live feed is ever unreachable it falls back to clearly-labelled example roles, so the demo never breaks.
+
+```
+streamlit run streamlit_app.py   # run the web UI locally
+```
+
 ## Why this exists
 
 Job seekers apply into a black box: an applicant-tracking system keyword-matches
