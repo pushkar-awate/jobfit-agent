@@ -69,6 +69,7 @@ resume_text = st.text_area(
 c1, c2 = st.columns([3, 1])
 query = c1.text_input("Search roles", value="machine learning")
 limit = c2.slider("How many", 5, 30, 15)
+sort_by = st.radio("Sort by", ["Best match", "Most recent"], horizontal=True)
 
 if st.button("Find & rank jobs", type="primary"):
     if not resume_text.strip():
@@ -79,7 +80,7 @@ if st.button("Find & rank jobs", type="primary"):
     with st.spinner("Fetching live postings and scoring them against your resume..."):
         live = True
         try:
-            pool = fetch_jobs(query, limit=60)   # fetch a broad pool, filter locally
+            pool = fetch_jobs(query, limit=100)  # fetch a broad, recent pool, filter locally
             if not pool:
                 live = False
                 pool = sample_jobs()
@@ -97,9 +98,14 @@ if st.button("Find & rank jobs", type="primary"):
         ranked = []
         for j in jobs:
             score, coverage, matched, missing, jd_total = score_job(j, resume_skills)
-            ranked.append((score, len(matched), coverage, matched, missing, jd_total, j))
-        # rank by match strength, then by absolute number of skills matched
-        ranked.sort(key=lambda r: (r[0], r[1]), reverse=True)
+            posted = j.get("published") or "0000-00-00"
+            ranked.append((score, len(matched), coverage, matched, missing, jd_total, j, posted))
+        if sort_by == "Most recent":
+            # newest first; break ties by match strength
+            ranked.sort(key=lambda r: (r[7], r[0], r[1]), reverse=True)
+        else:
+            # best match first; among equal matches, prefer the newer posting
+            ranked.sort(key=lambda r: (r[0], r[1], r[7]), reverse=True)
         ranked = ranked[:limit]
 
     if live:
@@ -118,7 +124,7 @@ if st.button("Find & rank jobs", type="primary"):
                "how central it is to your skill set, so a detailed role you match "
                "well ranks above a thin posting that lists a couple of skills.")
 
-    for score, nmatched, coverage, matched, missing, jd_total, j in ranked:
+    for score, nmatched, coverage, matched, missing, jd_total, j, posted in ranked:
         st.divider()
         top = st.columns([4, 1])
         title = j["title"] or "Role"
