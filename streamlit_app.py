@@ -1,8 +1,9 @@
 """Live job board with AI fit-scoring (jobfit-agent web demo).
 
-Pulls real job postings from a public feed, scores each one against your resume
-using the same skill matcher that powers the jobfit-agent CLI, ranks them by fit,
-shows what you match and what you're missing, and links straight to the posting.
+Pulls real job postings from a public feed, scores each one against your resume,
+ranks them by an F1-style match strength (so a detailed role you match well beats
+a thin posting that happens to list two skills you have), shows what you match and
+what you're missing, and links straight to the posting.
 """
 import os
 import sys
@@ -18,6 +19,7 @@ st.set_page_config(page_title="jobfit-agent - live job board", page_icon="\U0001
                    layout="centered")
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
+THIN_POSTING = 2   # postings listing this few skills carry little signal
 
 
 def _default_resume():
@@ -30,12 +32,25 @@ def _default_resume():
 
 
 def score_job(job, resume_skills):
-    """Keyword fit of one posting against the resume's skills."""
+    """Match strength of one posting against the resume.
+
+    Returns (match_score, coverage, matched, missing, jd_total).
+    match_score is an F1 blend of:
+      recall    = matched / jd_total     (how much of the role's ask you cover)
+      precision = matched / resume_total (how central the role is to your skills)
+    F1 avoids the old trap where a thin posting you fully match outranked a rich,
+    highly-relevant one. Sorting uses (match_score, matched_count).
+    """
     jd = set(extract_skills(job["match_text"]))
     matched = sorted(jd & resume_skills)
     missing = sorted(jd - resume_skills)
-    score = round(100 * len(matched) / max(1, len(jd)))
-    return score, matched, missing
+    nm, njd, nr = len(matched), len(jd), len(resume_skills)
+    if nm == 0 or njd == 0 or nr == 0:
+        return 0, 0, matched, missing, njd
+    recall = nm / njd
+    precision = nm / nr
+    f1 = 2 * recall * precision / (recall + precision)
+    return round(100 * f1), round(100 * recall), matched, missing, njd
 
 
 st.title("\U0001F9ED jobfit-agent - live job board")
@@ -74,33 +89,43 @@ if st.button("Find & rank jobs", type="primary"):
 
         ranked = []
         for j in jobs:
-            score, matched, missing = score_job(j, resume_skills)
-            ranked.append((score, matched, missing, j))
-        ranked.sort(key=lambda r: r[0], reverse=True)
+            score, coverage, matched, missing, jd_total = score_job(j, resume_skills)
+            ranked.append((score, len(matched), coverage, matched, missing, jd_total, j))
+        # rank by match strength, then by absolute number of skills matched
+        ranked.sort(key=lambda r: (r[0], r[1]), reverse=True)
 
     if live:
         st.caption("Your skills: " + (", ".join(sorted(resume_skills)) or "none detected"))
-        st.success("Showing %d live roles for \"%s\", ranked by your fit." %
-                   (len(ranked), query))
+        st.success("Showing %d live roles for \"%s\", ranked by overall match strength."
+                   % (len(ranked), query))
     else:
         st.info("The live feed wasn't reachable just now, so these are example "
                 "roles - the scoring and ranking work exactly the same.")
+    st.caption("Match strength balances how much of a role's ask you cover against "
+               "how central it is to your skill set, so a detailed role you match "
+               "well ranks above a thin posting that lists a couple of skills.")
 
-    for score, matched, missing, j in ranked:
+    for score, nmatched, coverage, matched, missing, jd_total, j in ranked:
         st.divider()
         top = st.columns([4, 1])
         title = j["title"] or "Role"
         company = j["company"] or "Company"
         top[0].markdown("### %s\n**%s** · %s" %
                         (title, company, j["location"] or "Remote"))
-        top[1].metric("Fit", "%d%%" % score)
-        st.progress(score / 100)
-        if matched:
-            st.markdown("**You match:** " + ", ".join(matched))
+        top[1].metric("Match", "%d" % score,
+                      help="0-100 match strength (F1 of coverage and relevance). "
+                           "Used to rank roles.")
+        st.progress(coverage / 100 if jd_total else 0.0)
+        if jd_total <= THIN_POSTING:
+            st.caption("⚠️ Limited info - this posting lists only %d skill(s), "
+                       "so the match is a rough guess." % jd_total)
+        elif matched:
+            st.markdown("**You match %d of %d skills this role lists** (%d%% of its asks): %s"
+                        % (nmatched, jd_total, coverage, ", ".join(matched)))
+        else:
+            st.caption("No overlapping skills detected for this posting.")
         if missing:
             st.markdown("**Missing:** " + ", ".join(missing[:8]))
-        if not matched and not missing:
-            st.caption("No overlapping skills detected for this posting.")
         bottom = st.columns([1, 3])
         if j.get("url"):
             bottom[0].link_button("Apply →", j["url"])

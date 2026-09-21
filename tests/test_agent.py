@@ -96,24 +96,35 @@ def test_job_board_scoring():
 
     assert _strip_html("<p>Python &amp; <b>PyTorch</b></p>") == "Python & PyTorch"
 
-    def score_job(job):
+    def score(job):
         jd = set(extract_skills(job["match_text"]))
-        matched = sorted(jd & rskills)
-        missing = sorted(jd - rskills)
-        return round(100 * len(matched) / max(1, len(jd))), matched, missing
+        matched = jd & rskills
+        nm, njd, nr = len(matched), len(jd), len(rskills)
+        if nm == 0 or njd == 0 or nr == 0:
+            return 0.0, nm
+        recall, precision = nm / njd, nm / nr
+        f1 = 2 * recall * precision / (recall + precision)
+        return f1, nm
+
+    # zero-overlap posting must not divide-by-zero and must score 0
+    assert score({"match_text": "barista latte espresso"})[0] == 0.0
 
     jobs = sample_jobs()
-    assert len(jobs) >= 3
-    ranked = sorted((score_job(j)[0] for j in jobs), reverse=True)
-    assert ranked == sorted(ranked, reverse=True), "results must be rank-ordered"
-    assert ranked[0] > ranked[-1], "scoring must differentiate roles"
-    # a strong ML role should score the resume highly
-    top = max(jobs, key=lambda j: score_job(j)[0])
-    top_score, top_matched, _ = score_job(top)
-    assert top_score >= 60 and top_matched, "top role should be a clear match"
-    print("PASS: job-board scoring  (top=%d%%, %d sample roles ranked)"
-          % (top_score, len(jobs)))
+    ranked = sorted(jobs, key=lambda j: (score(j)[0], score(j)[1]), reverse=True)
+    order = [j["title"] for j in ranked]
+    pos = {t: i for i, t in enumerate(order)}
 
+    # the old bug: "Applied Scientist" (3 skills matched) outranked richer roles.
+    # F1 must now place roles where the user matches MORE skills above it.
+    for richer in ["Machine Learning Engineer", "MLOps Engineer",
+                   "Machine Learning Platform Engineer"]:
+        assert pos[richer] < pos["Applied Scientist, Forecasting"], (
+            "%s (more skills matched) should outrank the thin 3-skill role" % richer)
+
+    top = ranked[0]
+    assert top["title"] == "Machine Learning Engineer", (
+        "most-matching role should rank first, got %r" % top["title"])
+    print("PASS: job-board F1 ranking  (top=%s, thin role demoted)" % top["title"])
 
 
 if __name__ == "__main__":
