@@ -49,14 +49,18 @@ def test_guardrail_blocks_invented_skill():
 
 
 class StubLLM(MockBrain):
-    """Simulates the Groq brain's assess_fit output (no network)."""
-    def generate(self, task, payload):
-        if task == "assess_fit":
+    """Simulates the Groq brain's assess_fit output (no network).
+
+    Overrides the task-agnostic `complete(prompt)`: it recognises the assess_fit
+    prompt by its "JOB DESCRIPTION" marker and returns JSON; for anything else
+    (e.g. draft_bullets) it returns "", so that tool takes the mock fallback."""
+    def complete(self, prompt):
+        if "JOB DESCRIPTION" in prompt:
             return ('```json\n{"score": 78, "strengths": ["agentic AI", "Python", '
                     '"Kubernetes"], "gaps": ["MCP", "LangGraph"], "rationale": '
                     '"Strong agentic and cloud background; missing MCP and LangGraph.", '
                     '"source": "llm"}\n```')
-        return super().generate(task, payload)
+        return ""
 
 
 def test_llm_path_with_stub():
